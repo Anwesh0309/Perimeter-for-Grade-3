@@ -11,42 +11,56 @@ const styleSettings = {
   statement:     { stability: 0.20, similarity_boost: 0.55, style: 0.50, use_speaker_boost: true },
 };
 
-// Singleton state
-let _currentAudio = null;
-let _isMuted = false;
-let _sessionCache = new Map(); // text → blobUrl
-let _currentRequest = null;    // AbortController for in-flight fetch
+// ── Singleton state ───────────────────────────────────────
+let _currentAudio   = null;   // currently playing HTMLAudioElement
+let _isMuted        = false;  // master mute flag
+let _sessionCache   = new Map(); // text → blobUrl
+let _currentRequest = null;   // AbortController for in-flight fetch
 
+// ── Public API ────────────────────────────────────────────
+
+/** Call this whenever muted state changes (from React context) */
 export function setMuted(muted) {
   _isMuted = muted;
   if (muted) _hardStop();
 }
 
+/** Sync mute from persisted state on page load / navigation */
+export function syncMuteState(muted) {
+  _isMuted = !!muted;
+  if (_isMuted) _hardStop();
+}
+
 export function getMuted() { return _isMuted; }
 
+/** Stop everything immediately */
 export function stopNarration() { _hardStop(); }
 
 function _hardStop() {
-  // Cancel any in-flight fetch
+  // 1. Cancel any in-flight API fetch
   if (_currentRequest) {
-    _currentRequest.abort();
+    try { _currentRequest.abort(); } catch (_) {}
     _currentRequest = null;
   }
-  // Stop any playing audio
+  // 2. Stop & fully release any playing audio
   if (_currentAudio) {
-    _currentAudio.onended = null;
-    _currentAudio.onerror = null;
-    _currentAudio.pause();
-    _currentAudio.src = '';
-    _currentAudio = null;
+    const a = _currentAudio;
+    _currentAudio = null;  // clear ref FIRST to prevent re-entrancy
+    a.onended = null;
+    a.onerror = null;
+    try { a.pause(); } catch (_) {}
+    // Detach src so browser releases the resource
+    try { a.src = ''; } catch (_) {}
   }
 }
 
+/** Narrate text. Always stops whatever is currently playing first. */
 export async function narrateText(text, style = 'statement') {
-  // Always stop whatever is playing first
+  // Stop any previous narration before starting a new one
   _hardStop();
 
-  if (_isMuted || !text || !text.trim()) return;
+  if (_isMuted) return;
+  if (!text || !text.trim()) return;
 
   const apiKey = import.meta.env.VITE_ELEVENLABS_API_KEY;
   if (!apiKey) return;
@@ -77,7 +91,6 @@ export async function narrateText(text, style = 'statement') {
       );
 
       _currentRequest = null;
-
       if (!response.ok) return;
 
       const blob = await response.blob();
@@ -85,18 +98,21 @@ export async function narrateText(text, style = 'statement') {
       _sessionCache.set(text, blobUrl);
     }
 
-    // Check again — user may have muted or navigated away while fetching
+    // Re-check mute — user may have toggled while we were fetching
     if (_isMuted) return;
 
     const audio = new Audio(blobUrl);
     _currentAudio = audio;
-    audio.onended = () => { _currentAudio = null; };
-    audio.onerror = () => { _currentAudio = null; };
-    await audio.play().catch(() => { _currentAudio = null; });
+    audio.onended = () => { if (_currentAudio === audio) _currentAudio = null; };
+    audio.onerror = () => { if (_currentAudio === audio) _currentAudio = null; };
+
+    await audio.play().catch(() => {
+      if (_currentAudio === audio) _currentAudio = null;
+    });
 
   } catch (err) {
-    if (err.name !== 'AbortError') console.warn('Audio error:', err);
-    _currentAudio = null;
     _currentRequest = null;
+    _currentAudio   = null;
+    if (err?.name !== 'AbortError') console.warn('Audio error:', err);
   }
 }

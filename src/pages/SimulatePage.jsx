@@ -19,13 +19,19 @@ const NARRATIONS = {
 };
 
 // ── Station A: Shape Builder ──────────────────────────
-function StationA() {
+function StationA({ onComplete }) {
   const [L, setL] = useState(8);
   const [B, setB] = useState(5);
+  const [interacted, setInteracted] = useState(false);
   const P = 2 * (L + B);
   const isSquare = L === B;
   const sc = 16;
   const W = L * sc, H = B * sc;
+
+  const handleChange = (setter) => (e) => {
+    setter(Number(e.target.value));
+    if (!interacted) { setInteracted(true); onComplete(); }
+  };
 
   return (
     <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:'0.8rem' }}>
@@ -58,7 +64,7 @@ function StationA() {
             <div style={{ fontFamily:'Nunito', fontWeight:800, fontSize:'0.8rem', color:col, marginBottom:'0.3rem' }}>
               {name}: <strong>{val} cm</strong>
             </div>
-            <input type="range" min={mn} max={mx} value={val} onChange={e=>set(Number(e.target.value))}/>
+            <input type="range" min={mn} max={mx} value={val} onChange={handleChange(set)}/>
           </div>
         ))}
       </div>
@@ -81,7 +87,7 @@ function StationA() {
 }
 
 // ── Station B: Ruler Trace ────────────────────────────
-function StationB() {
+function StationB({ onComplete }) {
   const [step, setStep] = useState(-1);
   const L=10, B=6, sc=14;
   const sides = [L,B,L,B];
@@ -129,7 +135,7 @@ function StationB() {
 
       <div style={{ display:'flex', gap:'0.5rem' }}>
         <button className="btn-ghost" onClick={()=>setStep(s=>Math.max(-1,s-1))} disabled={step<0} style={{ fontSize:'0.8rem', padding:'0.4rem 0.9rem' }}>← Back</button>
-        <button className="btn-gold" onClick={()=>setStep(s=>Math.min(3,s+1))} disabled={step>=3} style={{ fontSize:'0.8rem', padding:'0.4rem 0.9rem' }}>
+        <button className="btn-gold" onClick={()=>{ const next=Math.min(3,step+1); setStep(next); if(next===3) onComplete(); }} disabled={step>=3} style={{ fontSize:'0.8rem', padding:'0.4rem 0.9rem' }}>
           {step>=3 ? '✅ Done!' : step<0 ? 'Start →' : 'Next Side →'}
         </button>
         <button className="btn-ghost" onClick={()=>setStep(-1)} style={{ fontSize:'0.8rem', padding:'0.4rem 0.9rem' }}>↺</button>
@@ -139,12 +145,17 @@ function StationB() {
 }
 
 // ── Station C: Side Slider (matches reference exactly) ───
-function StationC() {
+function StationC({ onComplete }) {
   const [L, setL] = useState(6);
   const [B, setB] = useState(3);
-  const needsRegroup = B > L; // fun visual toggle
+  const [interacted, setInteracted] = useState(false);
+  const needsRegroup = B > L;
   const P = 2*(L+B);
-  const minuend = 60+L, subtrahend = 10+B; // illustrative numbers
+
+  const handleChange = (setter) => (e) => {
+    setter(Number(e.target.value));
+    if (!interacted) { setInteracted(true); onComplete(); }
+  };
 
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:'0.8rem', alignItems:'center' }}>
@@ -171,13 +182,13 @@ function StationC() {
         <div style={{ fontFamily:'Nunito', fontWeight:700, fontSize:'0.78rem', color:'rgba(255,255,255,0.5)', marginBottom:'0.3rem' }}>
           Breadth digit: {B}
         </div>
-        <input type="range" min={1} max={14} value={B} onChange={e=>setB(Number(e.target.value))}/>
+        <input type="range" min={1} max={14} value={B} onChange={handleChange(setB)}/>
       </div>
       <div style={{ width:'100%', maxWidth:'340px' }}>
         <div style={{ fontFamily:'Nunito', fontWeight:700, fontSize:'0.78rem', color:'rgba(255,255,255,0.5)', marginBottom:'0.3rem' }}>
           Length digit: {L}
         </div>
-        <input type="range" min={1} max={18} value={L} onChange={e=>setL(Number(e.target.value))}/>
+        <input type="range" min={1} max={18} value={L} onChange={handleChange(setL)}/>
       </div>
 
       {/* Calculation breakdown — reference dark box */}
@@ -206,7 +217,7 @@ function StationC() {
         display:'flex', alignItems:'center', justifyContent:'space-between',
       }}>
         <span>{!needsRegroup ? '🟢 Simple rectangle — no issues!' : '🟠 Composite shape? Add all outer sides!'}</span>
-        <button onClick={()=>{setL(Math.floor(Math.random()*14)+3);setB(Math.floor(Math.random()*10)+2);}} style={{ background:'rgba(255,255,255,0.12)', border:'none', borderRadius:'0.4rem', color:'white', fontFamily:'Baloo 2', fontWeight:700, fontSize:'0.72rem', padding:'0.25rem 0.6rem', cursor:'pointer' }}>
+        <button onClick={()=>{ setL(Math.floor(Math.random()*14)+3); setB(Math.floor(Math.random()*10)+2); if(!interacted){setInteracted(true);onComplete();} }} style={{ background:'rgba(255,255,255,0.12)', border:'none', borderRadius:'0.4rem', color:'white', fontFamily:'Baloo 2', fontWeight:700, fontSize:'0.72rem', padding:'0.25rem 0.6rem', cursor:'pointer' }}>
           New Number
         </button>
       </div>
@@ -215,7 +226,7 @@ function StationC() {
 }
 
 // ── Station D: Spot the Missing Side ────────────────────
-function StationD() {
+function StationD({ onComplete }) {
   const [guess, setGuess] = useState('');
   const [state, setState] = useState('idle'); // idle | correct | wrong
   const [shape, setShape] = useState({a:10,b:8,c:3,d:4});
@@ -223,7 +234,10 @@ function StationD() {
   const missing = b - c;
 
   const reset = () => { setGuess(''); setState('idle'); setShape({a:Math.floor(Math.random()*6)+8,b:Math.floor(Math.random()*5)+6,c:Math.floor(Math.random()*3)+2,d:Math.floor(Math.random()*4)+3}); };
-  const check = () => { parseInt(guess)===missing ? setState('correct') : setState('wrong'); };
+  const check = () => {
+    if (parseInt(guess) === missing) { setState('correct'); onComplete(); }
+    else { setState('wrong'); }
+  };
 
   return (
     <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:'0.8rem' }}>
@@ -281,6 +295,12 @@ export default function SimulatePage() {
   const navigate = useNavigate();
   const { dispatch } = useGameState();
   const [tab, setTab] = useState('A');
+  // Track which stations the user has interacted with / completed
+  const [completed, setCompleted] = useState({ A:false, B:false, C:false, D:false });
+
+  const markDone = useCallback((id) => {
+    setCompleted(prev => prev[id] ? prev : { ...prev, [id]: true });
+  }, []);
 
   const playNarration = useCallback((id) => {
     stopNarration();
@@ -291,6 +311,7 @@ export default function SimulatePage() {
 
   const handleTab = (id) => { setTab(id); playNarration(id); };
   const tabIdx = ORDER.indexOf(tab);
+  const currentDone = completed[tab];
 
   const handleDone = () => {
     stopNarration();
@@ -310,29 +331,46 @@ export default function SimulatePage() {
           </p>
         </div>
 
-        {/* Tab bar — matches reference exactly */}
+        {/* Tab bar */}
         <div className="tab-bar">
           {TABS.map(t => (
             <button key={t.id} className={`tab-btn ${tab===t.id?'active':''}`} onClick={()=>handleTab(t.id)}>
-              {t.icon} {t.id} {t.label}
+              {t.icon} {t.id} {t.label} {completed[t.id] ? '✓' : ''}
             </button>
           ))}
         </div>
 
         {/* Station card */}
         <div className="card" style={{ padding:'1rem' }}>
-          {tab==='A' && <StationA/>}
-          {tab==='B' && <StationB/>}
-          {tab==='C' && <StationC/>}
-          {tab==='D' && <StationD/>}
+          {tab==='A' && <StationA onComplete={()=>markDone('A')}/>}
+          {tab==='B' && <StationB onComplete={()=>markDone('B')}/>}
+          {tab==='C' && <StationC onComplete={()=>markDone('C')}/>}
+          {tab==='D' && <StationD onComplete={()=>markDone('D')}/>}
         </div>
 
-        {/* Prev / Next station bar — matches reference bottom bar */}
+        {/* Prev / Next station bar */}
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:'0.75rem' }}>
-          <button className="btn-ghost" onClick={()=>handleTab(ORDER[tabIdx-1])} disabled={tabIdx===0} style={{ opacity:tabIdx===0?0.3:1 }}>
+          {/* Previous always available if not first tab */}
+          <button
+            className="btn-ghost"
+            onClick={()=>handleTab(ORDER[tabIdx-1])}
+            disabled={tabIdx===0}
+            style={{ opacity:tabIdx===0?0.3:1 }}
+          >
             ← Previous Station
           </button>
-          {tab==='D' ? (
+
+          {/* Right side — only show action button when station is completed */}
+          {!currentDone ? (
+            <div style={{
+              fontFamily:'Nunito', fontWeight:700, fontSize:'0.8rem',
+              color:'rgba(255,255,255,0.4)', fontStyle:'italic',
+              display:'flex', alignItems:'center', gap:'0.4rem',
+            }}>
+              <span>🎯</span>
+              <span>Complete the activity to continue</span>
+            </div>
+          ) : tab==='D' ? (
             <button className="btn-gold" onClick={handleDone}>🎮 Go to Play!</button>
           ) : (
             <button className="btn-gold" onClick={()=>handleTab(ORDER[tabIdx+1])}>Next Station →</button>

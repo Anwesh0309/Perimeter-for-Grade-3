@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGameState } from '../context/GameStateContext';
-import { narrateText, stopNarration, setMuted } from '../utils/audio';
+import { narrateText, stopNarration, setMuted, syncMuteState } from '../utils/audio';
 
 // Inline particles for home page (no top-bar on home)
 function BgParticles() {
@@ -41,6 +41,7 @@ export default function HomePage() {
   const { state, dispatch } = useGameState();
 
   useEffect(() => {
+    syncMuteState(state.muted); // sync engine on home page mount
     stopNarration();
     const t = setTimeout(() => {
       narrateText(
@@ -54,8 +55,7 @@ export default function HomePage() {
   const handleMute = () => {
     const next = !state.muted;
     dispatch({ type: 'SET_MUTED', muted: next });
-    setMuted(next);
-    if (next) stopNarration();
+    setMuted(next); // setMuted already calls stopNarration internally when muting
   };
 
   return (

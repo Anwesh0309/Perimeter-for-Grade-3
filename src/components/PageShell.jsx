@@ -3,9 +3,10 @@
 //   • floating mute button bottom-right
 //   • particle background
 //   • full-screen no-scroll layout
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGameState } from '../context/GameStateContext';
-import { setMuted, getMuted, stopNarration } from '../utils/audio';
+import { setMuted, syncMuteState, stopNarration } from '../utils/audio';
 
 const STEPS = [
   { key:'wonder',   num:'01', label:'Wonder',   icon:'🔍' },
@@ -21,11 +22,16 @@ export default function PageShell({ phase, children }) {
   const { state, dispatch } = useGameState();
   const currentIdx = ORDER.indexOf(phase);
 
+  // Sync the audio engine's mute flag every time the component renders
+  // (handles page navigation where the module-level flag could drift from state)
+  useEffect(() => {
+    syncMuteState(state.muted);
+  }, [state.muted]);
+
   const handleMute = () => {
     const next = !state.muted;
     dispatch({ type:'SET_MUTED', muted: next });
-    setMuted(next);
-    if (next) stopNarration();
+    setMuted(next); // immediately updates engine + stops audio if muting
   };
 
   return (
