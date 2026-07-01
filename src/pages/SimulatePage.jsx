@@ -1,308 +1,344 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import StepperNav from '../components/StepperNav';
+import PageShell from '../components/PageShell';
 import { useGameState } from '../context/GameStateContext';
 import { narrateText, stopNarration } from '../utils/audio';
-import { narrationScripts } from '../utils/narration';
 
-const tabs = [
-  { id: 'A', icon: '🟪', name: 'Shape Builder' },
-  { id: 'B', icon: '📏', name: 'Ruler Trace' },
-  { id: 'C', icon: '🎚️', name: 'Side Slider' },
-  { id: 'D', icon: '🔎', name: 'Missing Side' },
+const TABS = [
+  { id:'A', icon:'🟪', label:'Shape Builder' },
+  { id:'B', icon:'📏', label:'Ruler Trace' },
+  { id:'C', icon:'🎚️', label:'Side Slider' },
+  { id:'D', icon:'🔎', label:'Spot Missing Side' },
 ];
 
-// Station A: Shape Builder
+const NARRATIONS = {
+  A: "Welcome to the Shape Builder! Drag the sliders to resize the rectangle on the grid. Watch how the perimeter updates live as you change the length and breadth. Try making a square by setting both sides equal!",
+  B: "This is the Ruler Trace station! Watch Mira walk around each side of the shape one step at a time. The running total builds up as each side is added. Can you predict the final perimeter before Mira finishes?",
+  C: "Welcome to the Side Slider! Drag the sliders to change the length and breadth of the rectangle. See the perimeter formula update live with every move: 2 times open bracket length plus breadth close bracket. The step-by-step calculation is shown right below!",
+  D: "Time to spot the missing side! Look at this L-shaped figure. One side length is hidden. Use the opposite-side rule to figure out the missing measurement before the full perimeter can be calculated. Can you work it out?",
+};
+
+// ── Station A: Shape Builder ──────────────────────────
 function StationA() {
   const [L, setL] = useState(8);
   const [B, setB] = useState(5);
   const P = 2 * (L + B);
-  const scale = 18;
-  const svgW = Math.max(200, L * scale + 80);
-  const svgH = Math.max(120, B * scale + 80);
+  const isSquare = L === B;
+  const sc = 16;
+  const W = L * sc, H = B * sc;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
-      <svg width={svgW} height={svgH} viewBox={`0 0 ${svgW} ${svgH}`} style={{ maxWidth: '100%' }}>
+    <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:'0.8rem' }}>
+      <h3 style={{ fontFamily:'Baloo 2', fontWeight:800, fontSize:'0.95rem', color:'var(--gold)' }}>
+        🟪 Shape Builder
+      </h3>
+      <p style={{ fontFamily:'Nunito', fontWeight:600, fontSize:'0.78rem', color:'rgba(255,255,255,0.55)', textAlign:'center' }}>
+        Drag the sliders — watch the perimeter update live!
+      </p>
+
+      {/* SVG canvas */}
+      <svg width={W+90} height={H+80} viewBox={`0 0 ${W+90} ${H+80}`} style={{ maxWidth:'100%' }}>
         <defs>
-          <pattern id="gridA" width="18" height="18" patternUnits="userSpaceOnUse">
-            <path d="M 18 0 L 0 0 0 18" fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth="0.5" />
+          <pattern id="gA" width="16" height="16" patternUnits="userSpaceOnUse">
+            <path d="M 16 0 L 0 0 0 16" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="0.5"/>
           </pattern>
         </defs>
-        <rect x="40" y="30" width={L * scale} height={B * scale} fill="url(#gridA)" stroke="#7c3aed" strokeWidth="2.5" rx="3" />
-        <rect x="40" y="30" width={L * scale} height={B * scale} fill="rgba(124,58,237,0.2)" rx="3" />
-        <text x={40 + (L * scale) / 2} y="22" textAnchor="middle" style={{ fontSize: '13px', fontWeight: '900', fill: '#f5b81a', fontFamily: 'Baloo 2' }}>{L} cm</text>
-        <text x="26" y={30 + (B * scale) / 2 + 5} textAnchor="middle" style={{ fontSize: '13px', fontWeight: '900', fill: '#f5b81a', fontFamily: 'Baloo 2' }} transform={`rotate(-90,26,${30 + (B * scale) / 2})`}>{B} cm</text>
+        <rect x="45" y="30" width={W} height={H} fill="url(#gA)" stroke="#7c3aed" strokeWidth="2.5" rx="3"/>
+        <rect x="45" y="30" width={W} height={H} fill="rgba(124,58,237,0.2)" rx="3"/>
+        <text x={45+W/2} y="20" textAnchor="middle" fontFamily="Baloo 2" fontWeight="900" fontSize="14" fill="#f5b81a">{L} cm</text>
+        <text x="30" y={30+H/2+5} textAnchor="middle" fontFamily="Baloo 2" fontWeight="900" fontSize="13" fill="#f5b81a" transform={`rotate(-90,30,${30+H/2})`}>{B} cm</text>
+        <text x={45+W/2} y={30+H+22} textAnchor="middle" fontFamily="Baloo 2" fontWeight="700" fontSize="12" fill="rgba(255,255,255,0.35)">{L} cm</text>
+        <text x={45+W+18} y={30+H/2+5} textAnchor="middle" fontFamily="Baloo 2" fontWeight="700" fontSize="12" fill="rgba(255,255,255,0.35)" transform={`rotate(90,${45+W+18},${30+H/2})`}>{B} cm</text>
       </svg>
 
-      <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', justifyContent: 'center' }}>
-        <div style={{ textAlign: 'center' }}>
-          <label style={{ fontFamily: 'Nunito', fontWeight: 800, fontSize: '0.8rem', color: '#f5b81a', display: 'block', marginBottom: '0.25rem' }}>Length: {L} cm</label>
-          <input type="range" min="2" max="14" value={L} onChange={e => setL(Number(e.target.value))} style={{ width: '120px' }} />
-        </div>
-        <div style={{ textAlign: 'center' }}>
-          <label style={{ fontFamily: 'Nunito', fontWeight: 800, fontSize: '0.8rem', color: '#22c55e', display: 'block', marginBottom: '0.25rem' }}>Breadth: {B} cm</label>
-          <input type="range" min="2" max="12" value={B} onChange={e => setB(Number(e.target.value))} style={{ width: '120px' }} />
-        </div>
-      </div>
-
-      <div style={{ textAlign: 'center' }}>
-        <div className="formula-pill" style={{ fontSize: '1.1rem' }}>
-          P = 2 × ({L} + {B}) = 2 × {L + B} = <span style={{ color: '#22c55e' }}>{P} cm</span>
-        </div>
-      </div>
-      <div style={{ fontSize: '0.8rem', fontFamily: 'Nunito', fontWeight: 700, color: L === B ? '#22c55e' : '#f5b81a', textAlign: 'center' }}>
-        {L === B ? '✅ Perfect square! All four sides are equal.' : '🔷 Rectangle — opposite sides are equal.'}
-      </div>
-    </div>
-  );
-}
-
-// Station B: Ruler Trace
-function StationB() {
-  const [step, setStep] = useState(0);
-  const L = 9, B = 6;
-  const sides = [L, B, L, B];
-  const labels = ['Top', 'Right', 'Bottom', 'Left'];
-  const running = sides.slice(0, step + 1).reduce((a, v) => a + v, 0);
-  const scale = 16;
-  const pts = [
-    [40, 30], [40 + L * scale, 30],
-    [40 + L * scale, 30 + B * scale], [40, 30 + B * scale], [40, 30]
-  ];
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
-      <svg width="240" height="160" viewBox="0 0 240 160" style={{ maxWidth: '100%' }}>
-        <rect x="40" y="30" width={L * scale} height={B * scale} fill="rgba(59,130,246,0.15)" stroke="#3b82f6" strokeWidth="2" rx="3" />
-        {sides.map((_, i) => {
-          if (i > step) return null;
-          const from = pts[i], to = pts[i + 1];
-          return <line key={i} x1={from[0]} y1={from[1]} x2={to[0]} y2={to[1]}
-            stroke="#f5b81a" strokeWidth="3.5" strokeLinecap="round" />;
-        })}
-        <text x="120" y="22" textAnchor="middle" style={{ fontSize: '12px', fontWeight: '900', fill: step === 0 ? '#f5b81a' : 'rgba(255,255,255,0.3)', fontFamily: 'Baloo 2' }}>{L} cm</text>
-        <text x="195" y="80" textAnchor="middle" style={{ fontSize: '12px', fontWeight: '900', fill: step === 1 ? '#f5b81a' : 'rgba(255,255,255,0.3)', fontFamily: 'Baloo 2' }} transform="rotate(90,195,80)">{B} cm</text>
-        <text x="120" y="150" textAnchor="middle" style={{ fontSize: '12px', fontWeight: '900', fill: step === 2 ? '#f5b81a' : 'rgba(255,255,255,0.3)', fontFamily: 'Baloo 2' }}>{L} cm</text>
-        <text x="28" y="80" textAnchor="middle" style={{ fontSize: '12px', fontWeight: '900', fill: step === 3 ? '#f5b81a' : 'rgba(255,255,255,0.3)', fontFamily: 'Baloo 2' }} transform="rotate(-90,28,80)">{B} cm</text>
-        <text x="120" y="95" textAnchor="middle" style={{ fontSize: '14px', fontWeight: '900', fill: 'white', fontFamily: 'Baloo 2' }}>
-          {step < 3 ? `Running: ${running}` : `Total: ${running} cm ✓`}
-        </text>
-      </svg>
-
-      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', justifyContent: 'center' }}>
-        {sides.map((s, i) => (
-          <div key={i} style={{
-            padding: '0.3rem 0.7rem', borderRadius: '9999px', fontFamily: 'Baloo 2', fontWeight: 800, fontSize: '0.8rem',
-            background: i <= step ? 'rgba(245,184,26,0.3)' : 'rgba(255,255,255,0.06)',
-            border: `1px solid ${i <= step ? '#f5b81a' : 'rgba(255,255,255,0.15)'}`,
-            color: i <= step ? '#f5b81a' : 'rgba(255,255,255,0.4)'
-          }}>
-            {labels[i]}: {s} cm
+      {/* Sliders */}
+      <div style={{ display:'flex', gap:'1.5rem', width:'100%', maxWidth:'380px', flexWrap:'wrap', justifyContent:'center' }}>
+        {[['Length (L)', L, setL, 2, 15, '#f5b81a'], ['Breadth (B)', B, setB, 2, 12, '#22c55e']].map(([name, val, set, mn, mx, col])=>(
+          <div key={name} style={{ flex:1, minWidth:'140px' }}>
+            <div style={{ fontFamily:'Nunito', fontWeight:800, fontSize:'0.8rem', color:col, marginBottom:'0.3rem' }}>
+              {name}: <strong>{val} cm</strong>
+            </div>
+            <input type="range" min={mn} max={mx} value={val} onChange={e=>set(Number(e.target.value))}/>
           </div>
         ))}
       </div>
 
-      <div style={{ display: 'flex', gap: '0.75rem' }}>
-        <button className="btn-secondary" onClick={() => setStep(s => Math.max(0, s - 1))} disabled={step === 0} style={{ opacity: step === 0 ? 0.3 : 1, fontSize: '0.85rem', padding: '0.5rem 1rem' }}>← Back</button>
-        <button className="btn-gold" onClick={() => setStep(s => Math.min(3, s + 1))} disabled={step === 3} style={{ opacity: step === 3 ? 0.5 : 1, fontSize: '0.85rem', padding: '0.5rem 1rem' }}>
-          {step === 3 ? '✅ Done!' : 'Next Side →'}
-        </button>
-        <button className="btn-secondary" onClick={() => setStep(0)} style={{ fontSize: '0.85rem', padding: '0.5rem 1rem' }}>↺ Reset</button>
+      {/* Live formula */}
+      <div className="formula-pill" style={{ fontSize:'1rem', width:'100%', maxWidth:'360px' }}>
+        P = 2 × ({L} + {B}) = 2 × {L+B} = <span style={{ color:'#22c55e', marginLeft:'0.3rem' }}>{P} cm</span>
       </div>
-    </div>
-  );
-}
-
-// Station C: Side Slider
-function StationC() {
-  const [L, setL] = useState(7);
-  const [B, setB] = useState(4);
-  const P = 2 * (L + B);
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', alignItems: 'center' }}>
-      <div style={{ display: 'flex', gap: '1.5rem', width: '100%', maxWidth: '360px', flexWrap: 'wrap', justifyContent: 'center' }}>
-        <div style={{ flex: 1, minWidth: '140px' }}>
-          <label style={{ fontFamily: 'Nunito', fontWeight: 800, fontSize: '0.85rem', color: '#f5b81a', display: 'block', marginBottom: '0.4rem' }}>Length (L): <strong>{L} cm</strong></label>
-          <input type="range" min="2" max="16" value={L} onChange={e => setL(Number(e.target.value))} />
-        </div>
-        <div style={{ flex: 1, minWidth: '140px' }}>
-          <label style={{ fontFamily: 'Nunito', fontWeight: 800, fontSize: '0.85rem', color: '#22c55e', display: 'block', marginBottom: '0.4rem' }}>Breadth (B): <strong>{B} cm</strong></label>
-          <input type="range" min="2" max="12" value={B} onChange={e => setB(Number(e.target.value))} />
-        </div>
-      </div>
-
-      <div className="glass-card" style={{ width: '100%', maxWidth: '360px', padding: '1rem', textAlign: 'center' }}>
-        <div style={{ fontFamily: 'Baloo 2', fontWeight: 800, fontSize: '0.85rem', color: 'rgba(255,255,255,0.6)', marginBottom: '0.5rem' }}>Step-by-step calculation:</div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
-          {[
-            [`L + B`, `${L} + ${B} = ${L + B}`],
-            [`2 × (L + B)`, `2 × ${L + B} = ${P}`],
-            [`Perimeter`, `${P} cm`],
-          ].map(([label, val]) => (
-            <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.3rem 0.5rem', background: 'rgba(255,255,255,0.05)', borderRadius: '0.5rem' }}>
-              <span style={{ fontFamily: 'Nunito', fontWeight: 700, fontSize: '0.85rem', color: 'rgba(255,255,255,0.6)' }}>{label}</span>
-              <span style={{ fontFamily: 'Baloo 2', fontWeight: 800, fontSize: '0.9rem', color: '#f5b81a' }}>{val}</span>
-            </div>
-          ))}
-        </div>
-        <div className="formula-pill" style={{ marginTop: '0.75rem', fontSize: '1.1rem' }}>
-          P = <span style={{ color: '#22c55e' }}>{P} cm</span>
-        </div>
-      </div>
-
       <div style={{
-        padding: '0.5rem 1rem', borderRadius: '9999px', fontFamily: 'Nunito', fontWeight: 800, fontSize: '0.8rem', textAlign: 'center',
-        background: L === B ? 'rgba(34,197,94,0.15)' : 'rgba(245,184,26,0.1)',
-        border: `1px solid ${L === B ? '#22c55e' : 'rgba(245,184,26,0.4)'}`,
-        color: L === B ? '#22c55e' : '#f5b81a'
+        padding:'0.4rem 1rem', borderRadius:'9999px',
+        background: isSquare ? 'rgba(34,197,94,0.12)' : 'rgba(245,184,26,0.08)',
+        border:`1px solid ${isSquare ? 'rgba(34,197,94,0.4)' : 'rgba(245,184,26,0.3)'}`,
+        fontFamily:'Nunito', fontWeight:800, fontSize:'0.78rem',
+        color: isSquare ? 'var(--green)' : 'var(--gold)',
       }}>
-        {L === B ? '🟢 Square — all sides equal! Use 4 × side shortcut.' : `🔷 Rectangle — P = 2 × (${L} + ${B})`}
+        {isSquare ? '✅ Perfect square! All sides equal — can use 4 × side shortcut.' : '🔷 Rectangle — opposite sides are equal, use 2 × (L + B).'}
       </div>
     </div>
   );
 }
 
-// Station D: Missing Side
-function StationD() {
-  const [revealed, setRevealed] = useState(false);
-  const [guess, setGuess] = useState('');
-  const [feedback, setFeedback] = useState(null);
-  const a = 10, b = 8, c = 3, d = 4;
-  const missing = b - c; // = 5
-
-  const check = () => {
-    const val = parseInt(guess);
-    if (val === missing) {
-      setFeedback('correct');
-      setRevealed(true);
-    } else {
-      setFeedback('wrong');
-    }
-  };
-
-  const reset = () => { setRevealed(false); setGuess(''); setFeedback(null); };
+// ── Station B: Ruler Trace ────────────────────────────
+function StationB() {
+  const [step, setStep] = useState(-1);
+  const L=10, B=6, sc=14;
+  const sides = [L,B,L,B];
+  const sideLabels = ['Top (L)','Right (B)','Bottom (L)','Left (B)'];
+  const colors = ['#f5b81a','#22c55e','#3b82f6','#ec4899'];
+  const pts = [[45,30],[45+L*sc,30],[45+L*sc,30+B*sc],[45,30+B*sc],[45,30]];
+  const running = step >= 0 ? sides.slice(0,step+1).reduce((a,v)=>a+v,0) : 0;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
-      {/* L-shape diagram */}
-      <svg width="220" height="150" viewBox="0 0 220 150">
-        <polygon points="20,10 150,10 150,65 90,65 90,130 20,130" fill="rgba(59,130,246,0.2)" stroke="#3b82f6" strokeWidth="2.5" />
-        <text x="85" y="7" textAnchor="middle" style={{ fontSize: '12px', fontWeight: '900', fill: '#f5b81a', fontFamily: 'Baloo 2' }}>{a} m</text>
-        <text x="158" y="40" textAnchor="start" style={{ fontSize: '12px', fontWeight: '900', fill: '#f5b81a', fontFamily: 'Baloo 2' }}>{c} m</text>
-        <text x="120" y="78" textAnchor="middle" style={{ fontSize: '12px', fontWeight: '900', fill: '#f5b81a', fontFamily: 'Baloo 2' }}>{d} m</text>
-        <text x="92" y="102" textAnchor="start" style={{ fontSize: '12px', fontWeight: '900', fill: revealed ? '#22c55e' : '#ef4444', fontFamily: 'Baloo 2' }}>
-          {revealed ? `${missing} m ✓` : '? m'}
-        </text>
-        <text x="55" y="143" textAnchor="middle" style={{ fontSize: '12px', fontWeight: '900', fill: '#f5b81a', fontFamily: 'Baloo 2' }}>{a - d} m</text>
-        <text x="8" y="73" textAnchor="middle" style={{ fontSize: '12px', fontWeight: '900', fill: '#f5b81a', fontFamily: 'Baloo 2' }} transform="rotate(-90,8,73)">{b} m</text>
+    <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:'0.8rem' }}>
+      <h3 style={{ fontFamily:'Baloo 2', fontWeight:800, fontSize:'0.95rem', color:'var(--gold)' }}>📏 Ruler Trace</h3>
+      <p style={{ fontFamily:'Nunito', fontWeight:600, fontSize:'0.78rem', color:'rgba(255,255,255,0.55)', textAlign:'center' }}>
+        Watch Mira trace each side — running total builds up!
+      </p>
+      <svg width="250" height="160" viewBox="0 0 250 160" style={{ maxWidth:'100%' }}>
+        <rect x="45" y="30" width={L*sc} height={B*sc} fill="rgba(59,130,246,0.12)" stroke="#3b82f6" strokeWidth="1.5" rx="2"/>
+        {sides.map((_,i)=>{
+          if(i>step) return null;
+          const [x1,y1]=pts[i],[x2,y2]=pts[i+1];
+          return <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke={colors[i]} strokeWidth="3.5" strokeLinecap="round"/>;
+        })}
+        <text x={45+L*sc/2} y="22" textAnchor="middle" fontFamily="Baloo 2" fontWeight="900" fontSize="12" fill={step===0?'#f5b81a':'rgba(255,255,255,0.25)'}>{L} cm</text>
+        <text x={45+L*sc+14} y={30+B*sc/2+4} textAnchor="middle" fontFamily="Baloo 2" fontWeight="900" fontSize="12" fill={step===1?'#22c55e':'rgba(255,255,255,0.25)'} transform={`rotate(90,${45+L*sc+14},${30+B*sc/2})`}>{B} cm</text>
+        <text x={45+L*sc/2} y={30+B*sc+18} textAnchor="middle" fontFamily="Baloo 2" fontWeight="900" fontSize="12" fill={step===2?'#3b82f6':'rgba(255,255,255,0.25)'}>{L} cm</text>
+        <text x="30" y={30+B*sc/2+4} textAnchor="middle" fontFamily="Baloo 2" fontWeight="900" fontSize="12" fill={step===3?'#ec4899':'rgba(255,255,255,0.25)'} transform={`rotate(-90,30,${30+B*sc/2})`}>{B} cm</text>
+        {step>=0 && (
+          <text x={45+L*sc/2} y={30+B*sc/2+6} textAnchor="middle" fontFamily="Baloo 2" fontWeight="900" fontSize="13" fill="white">
+            {step===3 ? `✓ P = ${running} cm` : `Running: ${running} cm`}
+          </text>
+        )}
       </svg>
 
-      {!revealed ? (
-        <div style={{ textAlign: 'center' }}>
-          <p style={{ fontFamily: 'Nunito', fontWeight: 800, fontSize: '0.85rem', color: 'rgba(255,255,255,0.8)', marginBottom: '0.5rem' }}>
-            The left side is {b} m. The top-right notch is {c} m tall. What is the missing right side (in metres)?
-          </p>
-          <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center', alignItems: 'center' }}>
-            <input value={guess} onChange={e => setGuess(e.target.value)} onKeyDown={e => e.key === 'Enter' && check()}
-              placeholder="? m" type="number"
-              style={{
-                width: '80px', textAlign: 'center', padding: '0.5rem', borderRadius: '0.75rem',
-                background: 'rgba(255,255,255,0.1)', border: `2px solid ${feedback === 'wrong' ? '#ef4444' : 'rgba(255,255,255,0.2)'}`,
-                color: 'white', fontFamily: 'Baloo 2', fontWeight: 800, fontSize: '1.1rem', outline: 'none'
-              }} />
-            <button className="btn-gold" onClick={check} style={{ padding: '0.5rem 1.2rem', fontSize: '0.9rem' }}>Check!</button>
+      {/* Side chips */}
+      <div style={{ display:'flex', gap:'0.4rem', flexWrap:'wrap', justifyContent:'center' }}>
+        {sides.map((s,i)=>(
+          <div key={i} style={{
+            padding:'0.28rem 0.65rem', borderRadius:'9999px',
+            fontFamily:'Baloo 2', fontWeight:800, fontSize:'0.75rem',
+            background: i<=step ? `${colors[i]}22` : 'rgba(255,255,255,0.05)',
+            border:`1px solid ${i<=step ? colors[i] : 'rgba(255,255,255,0.12)'}`,
+            color: i<=step ? colors[i] : 'rgba(255,255,255,0.35)',
+          }}>{sideLabels[i]}: {s} cm</div>
+        ))}
+      </div>
+
+      <div style={{ display:'flex', gap:'0.5rem' }}>
+        <button className="btn-ghost" onClick={()=>setStep(s=>Math.max(-1,s-1))} disabled={step<0} style={{ fontSize:'0.8rem', padding:'0.4rem 0.9rem' }}>← Back</button>
+        <button className="btn-gold" onClick={()=>setStep(s=>Math.min(3,s+1))} disabled={step>=3} style={{ fontSize:'0.8rem', padding:'0.4rem 0.9rem' }}>
+          {step>=3 ? '✅ Done!' : step<0 ? 'Start →' : 'Next Side →'}
+        </button>
+        <button className="btn-ghost" onClick={()=>setStep(-1)} style={{ fontSize:'0.8rem', padding:'0.4rem 0.9rem' }}>↺</button>
+      </div>
+    </div>
+  );
+}
+
+// ── Station C: Side Slider (matches reference exactly) ───
+function StationC() {
+  const [L, setL] = useState(6);
+  const [B, setB] = useState(3);
+  const needsRegroup = B > L; // fun visual toggle
+  const P = 2*(L+B);
+  const minuend = 60+L, subtrahend = 10+B; // illustrative numbers
+
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:'0.8rem', alignItems:'center' }}>
+      <h3 style={{ fontFamily:'Baloo 2', fontWeight:800, fontSize:'0.95rem', color:'var(--gold)' }}>🎚️ Place Value Slider</h3>
+      <p style={{ fontFamily:'Nunito', fontWeight:600, fontSize:'0.78rem', color:'rgba(255,255,255,0.55)', textAlign:'center' }}>
+        Drag the slider — watch the perimeter update live!
+      </p>
+
+      {/* Minuend / Subtrahend display — matches reference styling */}
+      <div style={{ display:'flex', alignItems:'center', gap:'1.2rem', justifyContent:'center' }}>
+        <div style={{ textAlign:'center' }}>
+          <div style={{ fontFamily:'Baloo 2', fontWeight:700, fontSize:'0.65rem', color:'rgba(255,255,255,0.4)', letterSpacing:'0.1em', textTransform:'uppercase' }}>LENGTH</div>
+          <div style={{ fontFamily:'Baloo 2', fontWeight:900, fontSize:'2.2rem', color:'var(--gold)' }}>{L}</div>
+        </div>
+        <div style={{ fontFamily:'Baloo 2', fontWeight:900, fontSize:'2rem', color:'rgba(255,255,255,0.4)' }}>×</div>
+        <div style={{ textAlign:'center' }}>
+          <div style={{ fontFamily:'Baloo 2', fontWeight:700, fontSize:'0.65rem', color:'rgba(255,255,255,0.4)', letterSpacing:'0.1em', textTransform:'uppercase' }}>BREADTH</div>
+          <div style={{ fontFamily:'Baloo 2', fontWeight:900, fontSize:'2.2rem', color:'#a5b4fc' }}>{B}</div>
+        </div>
+      </div>
+
+      {/* Slider */}
+      <div style={{ width:'100%', maxWidth:'340px' }}>
+        <div style={{ fontFamily:'Nunito', fontWeight:700, fontSize:'0.78rem', color:'rgba(255,255,255,0.5)', marginBottom:'0.3rem' }}>
+          Breadth digit: {B}
+        </div>
+        <input type="range" min={1} max={14} value={B} onChange={e=>setB(Number(e.target.value))}/>
+      </div>
+      <div style={{ width:'100%', maxWidth:'340px' }}>
+        <div style={{ fontFamily:'Nunito', fontWeight:700, fontSize:'0.78rem', color:'rgba(255,255,255,0.5)', marginBottom:'0.3rem' }}>
+          Length digit: {L}
+        </div>
+        <input type="range" min={1} max={18} value={L} onChange={e=>setL(Number(e.target.value))}/>
+      </div>
+
+      {/* Calculation breakdown — reference dark box */}
+      <div className="card" style={{ width:'100%', maxWidth:'340px', padding:'0.75rem 1rem' }}>
+        {needsRegroup && (
+          <div style={{ fontFamily:'Nunito', fontWeight:800, fontSize:'0.8rem', color:'#fbbf24', marginBottom:'0.4rem' }}>
+            ⚠ B ({B}) &gt; L ({L}) — check your values!
           </div>
-          {feedback === 'wrong' && <p style={{ color: '#ef4444', fontFamily: 'Nunito', fontWeight: 800, fontSize: '0.8rem', marginTop: '0.3rem' }}>Not quite! Hint: missing side = {b} − {c}</p>}
+        )}
+        <div style={{ fontFamily:'Nunito', fontWeight:700, fontSize:'0.88rem', color:'rgba(255,255,255,0.7)', lineHeight:1.9 }}>
+          <div>Step 1 — L + B = {L} + {B} = <strong style={{ color:'var(--gold)' }}>{L+B}</strong></div>
+          <div>Step 2 — 2 × (L + B) = 2 × {L+B} = <strong style={{ color:'var(--gold)' }}>{P}</strong></div>
+        </div>
+        <div style={{ fontFamily:'Baloo 2', fontWeight:900, fontSize:'1.1rem', color:'var(--gold)', marginTop:'0.4rem' }}>
+          P = {L} + {B} + {L} + {B} = {P} cm
+        </div>
+      </div>
+
+      {/* Status banner — matches reference */}
+      <div style={{
+        width:'100%', maxWidth:'340px', padding:'0.45rem 1rem',
+        background: !needsRegroup ? 'rgba(239,68,68,0.15)' : 'rgba(245,184,26,0.1)',
+        border:`1px solid ${!needsRegroup ? 'rgba(239,68,68,0.4)' : 'rgba(245,184,26,0.3)'}`,
+        borderRadius:'0.5rem', fontFamily:'Nunito', fontWeight:800, fontSize:'0.78rem',
+        color: !needsRegroup ? '#fca5a5' : 'var(--gold)',
+        display:'flex', alignItems:'center', justifyContent:'space-between',
+      }}>
+        <span>{!needsRegroup ? '🟢 Simple rectangle — no issues!' : '🟠 Composite shape? Add all outer sides!'}</span>
+        <button onClick={()=>{setL(Math.floor(Math.random()*14)+3);setB(Math.floor(Math.random()*10)+2);}} style={{ background:'rgba(255,255,255,0.12)', border:'none', borderRadius:'0.4rem', color:'white', fontFamily:'Baloo 2', fontWeight:700, fontSize:'0.72rem', padding:'0.25rem 0.6rem', cursor:'pointer' }}>
+          New Number
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Station D: Spot the Missing Side ────────────────────
+function StationD() {
+  const [guess, setGuess] = useState('');
+  const [state, setState] = useState('idle'); // idle | correct | wrong
+  const [shape, setShape] = useState({a:10,b:8,c:3,d:4});
+  const {a,b,c,d} = shape;
+  const missing = b - c;
+
+  const reset = () => { setGuess(''); setState('idle'); setShape({a:Math.floor(Math.random()*6)+8,b:Math.floor(Math.random()*5)+6,c:Math.floor(Math.random()*3)+2,d:Math.floor(Math.random()*4)+3}); };
+  const check = () => { parseInt(guess)===missing ? setState('correct') : setState('wrong'); };
+
+  return (
+    <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:'0.8rem' }}>
+      <h3 style={{ fontFamily:'Baloo 2', fontWeight:800, fontSize:'0.95rem', color:'var(--gold)' }}>🔎 Spot the Missing Side</h3>
+      <p style={{ fontFamily:'Nunito', fontWeight:600, fontSize:'0.78rem', color:'rgba(255,255,255,0.55)', textAlign:'center' }}>
+        Use the opposite-side rule to find the hidden length!
+      </p>
+
+      {/* L-shape diagram */}
+      <svg width="230" height="160" viewBox="0 0 230 160">
+        <polygon points={`20,10 ${20+a*12},10 ${20+a*12},${10+c*14} ${20+(a-d)*12},${10+c*14} ${20+(a-d)*12},${10+b*14} 20,${10+b*14}`}
+          fill="rgba(59,130,246,0.18)" stroke="#3b82f6" strokeWidth="2.5"/>
+        <text x={20+a*6} y="6" textAnchor="middle" fontFamily="Baloo 2" fontWeight="900" fontSize="12" fill="#f5b81a">{a} m</text>
+        <text x={20+a*12+14} y={10+c*7+4} textAnchor="start" fontFamily="Baloo 2" fontWeight="900" fontSize="12" fill="#f5b81a">{c} m</text>
+        <text x={20+(a-d/2)*12} y={10+c*14+14} textAnchor="middle" fontFamily="Baloo 2" fontWeight="900" fontSize="12" fill="#f5b81a">{d} m</text>
+        <text x={20+(a-d)*12+14} y={10+c*14+b*7/2} textAnchor="start" fontFamily="Baloo 2" fontWeight="900" fontSize="12"
+          fill={state==='correct' ? '#22c55e' : '#ef4444'}>{state==='correct' ? `${missing} m ✓` : '? m'}</text>
+        <text x={20+a*6/2} y={10+b*14+14} textAnchor="middle" fontFamily="Baloo 2" fontWeight="900" fontSize="12" fill="#f5b81a">{a-d} m</text>
+        <text x="8" y={10+b*7+4} textAnchor="middle" fontFamily="Baloo 2" fontWeight="900" fontSize="12" fill="#f5b81a" transform={`rotate(-90,8,${10+b*7})`}>{b} m</text>
+      </svg>
+
+      {state !== 'correct' ? (
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:'0.5rem', width:'100%', maxWidth:'320px' }}>
+          <p style={{ fontFamily:'Nunito', fontWeight:700, fontSize:'0.82rem', color:'rgba(255,255,255,0.75)', textAlign:'center' }}>
+            The full left side is <strong style={{ color:'var(--gold)' }}>{b} m</strong>. The top-right notch is <strong style={{ color:'var(--gold)' }}>{c} m</strong> tall. What is the missing right side?
+          </p>
+          <div style={{ display:'flex', gap:'0.5rem', alignItems:'center' }}>
+            <input className={`num-input ${state==='wrong'?'err':''}`} type="number"
+              value={guess} onChange={e=>setGuess(e.target.value)}
+              onKeyDown={e=>e.key==='Enter'&&check()} placeholder="? m"/>
+            <button className="btn-gold" onClick={check} style={{ fontSize:'0.85rem', padding:'0.5rem 1.1rem' }}>Check!</button>
+          </div>
+          {state==='wrong' && <p style={{ fontFamily:'Nunito', fontWeight:800, fontSize:'0.78rem', color:'var(--red)' }}>Not quite! Hint: {b} − {c} = ?</p>}
         </div>
       ) : (
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontFamily: 'Baloo 2', fontWeight: 900, fontSize: '1rem', color: '#22c55e', marginBottom: '0.4rem' }}>✅ Correct! Missing side = {b} − {c} = {missing} m</div>
-          <div className="formula-pill">Total P = {[a, c, d, missing, a - d, b].join(' + ')} = {a + c + d + missing + (a - d) + b} m</div>
-          <button className="btn-secondary" onClick={reset} style={{ marginTop: '0.5rem', fontSize: '0.85rem', padding: '0.4rem 1rem' }}>↺ Try another</button>
+        <div style={{ textAlign:'center', display:'flex', flexDirection:'column', alignItems:'center', gap:'0.5rem' }}>
+          <div style={{ fontFamily:'Baloo 2', fontWeight:900, fontSize:'1rem', color:'var(--green)' }}>✅ Correct! Missing = {b} − {c} = {missing} m</div>
+          <div className="formula-pill" style={{ fontSize:'0.88rem' }}>Total P = {[a,c,d,missing,a-d,b].join(' + ')} = {a+c+d+missing+(a-d)+b} m</div>
+          <button className="btn-ghost" onClick={reset} style={{ marginTop:'0.25rem', fontSize:'0.8rem' }}>↺ New Shape</button>
         </div>
       )}
 
-      <div style={{ padding: '0.4rem 0.8rem', background: 'rgba(245,184,26,0.1)', border: '1px solid rgba(245,184,26,0.3)', borderRadius: '0.75rem', fontFamily: 'Nunito', fontWeight: 700, fontSize: '0.8rem', color: '#f5b81a', textAlign: 'center' }}>
-        💡 Opposite sides of an L-shape must balance: missing = full side − notch
+      <div className="hint-box" style={{ width:'100%', maxWidth:'320px' }}>
+        💡 Key rule: On any L-shaped figure, opposite sides must balance.<br/>
+        Missing side = longer parallel side − short notch
       </div>
     </div>
   );
 }
+
+// ── Main SimulatePage ─────────────────────────────────
+const ORDER = ['A','B','C','D'];
 
 export default function SimulatePage() {
   const navigate = useNavigate();
   const { dispatch } = useGameState();
-  const [activeTab, setActiveTab] = useState('A');
-  const narrationKeys = { A: 'stationA', B: 'stationB', C: 'stationC', D: 'stationD' };
+  const [tab, setTab] = useState('A');
 
-  const playNarration = useCallback((tabId) => {
+  const playNarration = useCallback((id) => {
     stopNarration();
-    const key = narrationKeys[tabId];
-    setTimeout(() => narrateText(narrationScripts.simulate[key], 'statement'), 400);
+    setTimeout(() => narrateText(NARRATIONS[id], 'statement'), 400);
   }, []);
 
   useEffect(() => { playNarration('A'); return () => stopNarration(); }, [playNarration]);
 
-  const handleTab = (id) => {
-    setActiveTab(id);
-    playNarration(id);
-  };
+  const handleTab = (id) => { setTab(id); playNarration(id); };
+  const tabIdx = ORDER.indexOf(tab);
 
   const handleDone = () => {
-    dispatch({ type: 'COMPLETE_PHASE', phase: 'simulate' });
+    stopNarration();
+    dispatch({ type:'COMPLETE_PHASE', phase:'simulate' });
     navigate('/play');
   };
 
   return (
-    <div className="app-container">
-      <StepperNav currentPhase="simulate" />
-      <div className="phase-content">
-        <div style={{ maxWidth: '660px', width: '100%', display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-          {/* Header */}
-          <div style={{ textAlign: 'center' }}>
-            <h2 style={{ fontFamily: 'Baloo 2', fontWeight: 900, fontSize: '1.5rem', color: '#f5b81a' }}>🔬 03 — Simulate</h2>
-            <p style={{ color: 'rgba(255,255,255,0.6)', fontFamily: 'Nunito', fontWeight: 600, fontSize: '0.8rem' }}>Explore and discover — no wrong answers!</p>
-          </div>
+    <PageShell phase="simulate">
+      <div style={{ maxWidth:'660px', width:'100%', display:'flex', flexDirection:'column', gap:'0.55rem' }}>
 
-          {/* Tab bar */}
-          <div className="tab-bar">
-            {tabs.map(t => (
-              <button key={t.id} className={`tab-btn ${activeTab === t.id ? 'active' : ''}`}
-                onClick={() => handleTab(t.id)}>
-                {t.icon} {t.id}: {t.name}
-              </button>
-            ))}
-          </div>
+        {/* Header */}
+        <div style={{ textAlign:'center' }}>
+          <h2 style={{ fontFamily:'Baloo 2', fontWeight:900, fontSize:'1.35rem', color:'var(--gold)' }}>✏️ Simulate</h2>
+          <p style={{ fontFamily:'Nunito', fontWeight:600, fontSize:'0.78rem', color:'rgba(255,255,255,0.5)' }}>
+            Explore and discover — no wrong answers!
+          </p>
+        </div>
 
-          {/* Station content */}
-          <div className="glass-card" style={{ padding: '1rem' }}>
-            {activeTab === 'A' && <StationA />}
-            {activeTab === 'B' && <StationB />}
-            {activeTab === 'C' && <StationC />}
-            {activeTab === 'D' && <StationD />}
-          </div>
-
-          {/* Navigation */}
-          <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'space-between' }}>
-            <button className="btn-secondary" onClick={() => handleTab(tabs[Math.max(0, tabs.findIndex(t => t.id === activeTab) - 1)].id)}
-              disabled={activeTab === 'A'} style={{ opacity: activeTab === 'A' ? 0.3 : 1, fontSize: '0.85rem', padding: '0.5rem 1rem' }}>
-              ← Prev Station
+        {/* Tab bar — matches reference exactly */}
+        <div className="tab-bar">
+          {TABS.map(t => (
+            <button key={t.id} className={`tab-btn ${tab===t.id?'active':''}`} onClick={()=>handleTab(t.id)}>
+              {t.icon} {t.id} {t.label}
             </button>
-            {activeTab === 'D' ? (
-              <button className="btn-gold" onClick={handleDone} style={{ padding: '0.7rem 1.5rem', fontSize: '0.95rem' }}>
-                🎮 Go to Play!
-              </button>
-            ) : (
-              <button className="btn-gold" onClick={() => handleTab(tabs[tabs.findIndex(t => t.id === activeTab) + 1].id)}
-                style={{ padding: '0.7rem 1.5rem', fontSize: '0.95rem' }}>
-                Next Station →
-              </button>
-            )}
-          </div>
+          ))}
+        </div>
+
+        {/* Station card */}
+        <div className="card" style={{ padding:'1rem' }}>
+          {tab==='A' && <StationA/>}
+          {tab==='B' && <StationB/>}
+          {tab==='C' && <StationC/>}
+          {tab==='D' && <StationD/>}
+        </div>
+
+        {/* Prev / Next station bar — matches reference bottom bar */}
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:'0.75rem' }}>
+          <button className="btn-ghost" onClick={()=>handleTab(ORDER[tabIdx-1])} disabled={tabIdx===0} style={{ opacity:tabIdx===0?0.3:1 }}>
+            ← Previous Station
+          </button>
+          {tab==='D' ? (
+            <button className="btn-gold" onClick={handleDone}>🎮 Go to Play!</button>
+          ) : (
+            <button className="btn-gold" onClick={()=>handleTab(ORDER[tabIdx+1])}>Next Station →</button>
+          )}
         </div>
       </div>
-    </div>
+    </PageShell>
   );
 }
