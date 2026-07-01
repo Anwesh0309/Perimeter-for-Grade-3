@@ -1,8 +1,30 @@
 // Question Engine - generates randomized instances from templates
 // 100 templates across 10 worlds (10 per world)
 
+// Seeded random state
+let _seed = 12345;
+export function setSeed(val) {
+  if (typeof val === 'string') {
+    let hash = 0;
+    for (let i = 0; i < val.length; i++) {
+      hash = (hash << 5) - hash + val.charCodeAt(i);
+      hash |= 0; // Convert to 32bit integer
+    }
+    _seed = hash;
+  } else {
+    _seed = val;
+  }
+}
+
+export function seededRandom() {
+  let t = _seed += 0x6D2B79F5;
+  t = Math.imul(t ^ (t >>> 15), t | 1);
+  t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+}
+
 function rnd(min, max) {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
+  return Math.floor(seededRandom() * (max - min + 1)) + min;
 }
 
 function makeDistractors(correct, params, shapeType) {
@@ -37,8 +59,11 @@ function makeDistractors(correct, params, shapeType) {
 
   const arr = [...candidates].filter(v => v !== correct && v > 0);
   const unique = [...new Set(arr)];
-  // shuffle
-  unique.sort(() => Math.random() - 0.5);
+  // shuffle using Fisher-Yates
+  for (let i = unique.length - 1; i > 0; i--) {
+    const j = Math.floor(seededRandom() * (i + 1));
+    [unique[i], unique[j]] = [unique[j], unique[i]];
+  }
   return unique.slice(0, 3);
 }
 
@@ -804,6 +829,7 @@ const templates = [
 export function generateWorldSet(worldId) {
   const worldTemplates = templates.filter(t => t.worldId === worldId);
   return worldTemplates.map(template => {
+    setSeed(template.id);
     const result = template.gen();
     let { prompt, correct, params, diagramType, diagramData, hint } = result;
     // Ensure correct answer is a positive integer
@@ -839,7 +865,7 @@ export function generateWorldSet(worldId) {
 function shuffle(arr) {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
+    const j = Math.floor(seededRandom() * (i + 1));
     [a[i], a[j]] = [a[j], a[i]];
   }
   return a;

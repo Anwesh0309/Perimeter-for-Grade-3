@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PageShell from '../components/PageShell';
 import { useGameState } from '../context/GameStateContext';
@@ -295,25 +295,34 @@ export default function SimulatePage() {
   const navigate = useNavigate();
   const { dispatch } = useGameState();
   const [tab, setTab] = useState('A');
-  // Track which stations the user has interacted with / completed
   const [completed, setCompleted] = useState({ A:false, B:false, C:false, D:false });
+  const narrateTimerRef = useRef(null);
 
   const markDone = useCallback((id) => {
     setCompleted(prev => prev[id] ? prev : { ...prev, [id]: true });
   }, []);
 
   const playNarration = useCallback((id) => {
+    // Cancel any pending narration timer
+    if (narrateTimerRef.current) clearTimeout(narrateTimerRef.current);
     stopNarration();
-    setTimeout(() => narrateText(NARRATIONS[id], 'statement'), 400);
+    narrateTimerRef.current = setTimeout(() => narrateText(NARRATIONS[id], 'statement'), 400);
   }, []);
 
-  useEffect(() => { playNarration('A'); return () => stopNarration(); }, [playNarration]);
+  useEffect(() => {
+    playNarration('A');
+    return () => {
+      if (narrateTimerRef.current) clearTimeout(narrateTimerRef.current);
+      stopNarration(); // prevent bleed into Play phase
+    };
+  }, [playNarration]);
 
   const handleTab = (id) => { setTab(id); playNarration(id); };
   const tabIdx = ORDER.indexOf(tab);
   const currentDone = completed[tab];
 
   const handleDone = () => {
+    if (narrateTimerRef.current) clearTimeout(narrateTimerRef.current);
     stopNarration();
     dispatch({ type:'COMPLETE_PHASE', phase:'simulate' });
     navigate('/play');

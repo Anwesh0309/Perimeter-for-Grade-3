@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGameState } from '../context/GameStateContext';
 import { narrateText, stopNarration, setMuted, syncMuteState } from '../utils/audio';
@@ -40,16 +40,21 @@ export default function HomePage() {
   const navigate = useNavigate();
   const { state, dispatch } = useGameState();
 
+  const timerRef = useRef(null);
+
   useEffect(() => {
-    syncMuteState(state.muted); // sync engine on home page mount
+    syncMuteState(state.muted);
     stopNarration();
-    const t = setTimeout(() => {
+    timerRef.current = setTimeout(() => {
       narrateText(
         "Welcome to Perimeter Quest! I am Mira the Measuring Mouse. Join me on an adventure to learn all about perimeter — the distance around shapes. We will explore through stories, simulations, and exciting games. Ready to begin your journey?",
         'statement'
       );
     }, 700);
-    return () => { clearTimeout(t); stopNarration(); };
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      stopNarration();
+    };
   }, []);
 
   const handleMute = () => {
@@ -148,7 +153,7 @@ export default function HomePage() {
 
         {/* CTA */}
         <button className="btn-gold" style={{ width: '100%', maxWidth: '320px', fontSize: '1.1rem', padding: '0.9rem 2rem' }}
-          onClick={() => navigate('/wonder')}>
+          onClick={() => { if (timerRef.current) clearTimeout(timerRef.current); stopNarration(); navigate('/wonder'); }}>
           🚀 Begin Your Journey!
         </button>
 
